@@ -72,9 +72,9 @@ class DataGenerator(keras.utils.Sequence):
     
     def __data_load(self, ID):
         file_dir = self.data_dir + "/jpegs_256/" + ID.rstrip('.avi')
-        n_frames = len([name for name in os.listdir(file_dir) if os.path.isfile(name)])
+        n_frames = len([name for name in os.listdir(file_dir) if os.path.isfile(file_dir + os.sep + name)])
         # select random frame 
-        frame = random.randint(1, n_frames+1)
+        frame = random.randint(1, n_frames)
         file = file_dir + '/frame' + f'{frame:06}' + '.jpg'
         img = cv2.imread(file)
         img = cv2.resize(img, self.dim) 
