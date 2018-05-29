@@ -97,3 +97,11 @@ def getVggModel2(input_shape, printmod=1):
     if (printmod==1 ):
         model.summary()
     return model
+
+def getVggBottleNeckModel(input_shape, printmod=1):
+    model = VGG16(include_top=False, weights='imagenet', input_shape=input_shape)
+    
+    if (printmod==1 ):
+        model.summary()
+    
+    return model

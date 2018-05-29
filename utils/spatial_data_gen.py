@@ -6,10 +6,20 @@ import cv2
 import os, os.path
 import random
 
+default_image_data_gen_params = \
+    {
+        'rescale' :1./255,
+        'shear_range':0.2,
+        'zoom_range' : 0.2,
+        'horizontal_flip' :True, 
+        'samplewise_center' : True, 
+        'samplewise_std_normalization' : True
+    }
+    
 class DataGenerator(keras.utils.Sequence):
     'Generate UCF 101 data for keras'
     def __init__(self, list_IDs, labels, data_dir, batch_size=64, dim=(224,224), n_channels=3, n_classes=101, shuffle=True, \
-                 validation=False):        
+                 validation=False, image_data_gen_params=default_image_data_gen_params):        
         'Initialisation'
         self.data_dir = data_dir
         self.dim = dim

@@ -112,7 +112,55 @@ def getVggMotionModel(input_shape, printmod=1):
     
     model = Model(inputs=img_input, outputs=predictions, name='vgg16_motion_model')
     
+        # freeze original VGG16 layers
+    for i, layer in enumerate(model.layers):
+        if 'block1' in layer.name or 'block2' in layer.name or 'block3' in layer.name or \
+        'block4' in layer.name or 'block5' in layer.name:
+            layer.trainable = False
+        else:
+            layer.trainable = True
+            
     if (printmod==1 ):
         model.summary()
     return model
 
+
+def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1):
+    model = Sequential()
+    weight_decay = 1e-4
+    model.add(Conv2D(32, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay), input_shape=input_shape))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(Conv2D(32, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Dropout(0.2))
+
+    model.add(Conv2D(64, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(Conv2D(64, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Dropout(0.3))
+
+    model.add(Conv2D(128, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(Conv2D(128, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Dropout(0.4))
+
+    model.add(Flatten())
+    model.add(Dense(512))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(n_classes, activation='softmax'))
+                         
+    if (printmod==1 ):
+        model.summary()
+    return model

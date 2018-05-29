@@ -6,10 +6,22 @@ import cv2
 import os, os.path
 import random
 
+default_validation_options = { 'rescale' : 1./255, \
+                         'samplewise_center': True, \
+                         'samplewise_std_normalization':True \
+    }
+
+default_training_options = { 'rescale' : 1./255, \
+                            'shear_range' : 0.2, \
+                            'zoom_range' : 0.2, \
+                         'samplewise_center' : True, \
+                         'samplewise_std_normalization' : True \
+    }
+
 class DataGenerator(keras.utils.Sequence):
     'Generate UCF 101 data for keras'
     def __init__(self, list_IDs, labels, data_dir, batch_size=64, dim=(224,224), n_frames=3, n_frequency=5, n_classes=101, shuffle=True, \
-                validation=False):        
+                validation=False, return_files=False):        
         'Initialisation'
         self.data_dir = data_dir
         self.dim = dim
@@ -20,7 +32,9 @@ class DataGenerator(keras.utils.Sequence):
         self.n_frequency = n_frequency
         self.shuffle = shuffle 
         self.n_classes = n_classes
+        self.return_files = return_files
         self.on_epoch_end()
+
         
         if validation :
             self.data_gen = ImageDataGenerator(rescale=1./255, \
@@ -43,9 +57,12 @@ class DataGenerator(keras.utils.Sequence):
         list_IDs_temp = [self.list_IDs[k] for k in indexes]
         
         # Generate data 
-        X, y = self.__data_generation(list_IDs_temp)
+        X, y, dirs = self.__data_generation(list_IDs_temp)
         
-        return X, y
+        if self.return_files:
+            return X, y, dirs
+        else:
+            return X, y
     
     def on_epoch_end(self):
         'Update indexes after each epoch'
@@ -57,13 +74,16 @@ class DataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples' 
         X = np.empty((self.batch_size, *self.dim,self.n_frames*2), dtype=np.float32)
         y = np.empty((self.batch_size), dtype=int)
+        dirs = []
         
         # Generate data 
         for i, ID in enumerate(list_IDs_temp):
-            X[i,] = self.__data_load(ID)            
+            data = self.__data_load(ID)            
+            X[i,] = data[0] 
             y[i] = self.labels[ID]-1
+            dirs.append(data[1])
             
-        return self.data_gen.standardize(X.astype(float)), keras.utils.to_categorical(y, num_classes=self.n_classes)
+        return self.data_gen.standardize(X.astype(float)), keras.utils.to_categorical(y, num_classes=self.n_classes), dirs
     
     def __data_load(self, ID):
         u_file_dir = self.data_dir + "/u/" + ID.rstrip('.avi')
@@ -82,10 +102,11 @@ class DataGenerator(keras.utils.Sequence):
         frames = [i for i in range(seq_start,seq_start+seq_len,self.n_frequency)]        
         #print(frames)
         img = None
+        files = []
         for frame in frames:
             u_file = u_file_dir + os.sep + 'frame' + f'{frame:06}' + '.jpg'
             v_file = v_file_dir + os.sep + 'frame' + f'{frame:06}' + '.jpg'
-            
+            files.append(u_file)
             u_img = cv2.imread(u_file, 0)
             u_img = cv2.resize(u_img, self.dim) 
             u_img = u_img.reshape((*self.dim,1))
@@ -97,7 +118,7 @@ class DataGenerator(keras.utils.Sequence):
                 img = np.concatenate((u_img, v_img), axis=2)
             else:
                 img = np.concatenate((img, np.concatenate((u_img, v_img), axis=2)), axis=2)            
-        return img
+        return img, files
     
     def get_all_frames_random_video(self, n_sample):
         'select all frames for a randomly selected video' 
