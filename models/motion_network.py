@@ -125,7 +125,7 @@ def getVggMotionModel(input_shape, printmod=1):
     return model
 
 
-def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1):
+def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1, dropout=1):
     model = Sequential()
     weight_decay = 1e-4
     model.add(Conv2D(32, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay), input_shape=input_shape))
@@ -135,7 +135,8 @@ def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1):
     model.add(Activation('relu'))
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2,2)))
-    model.add(Dropout(0.2))
+    if dropout:
+        model.add(Dropout(0.2))
 
     model.add(Conv2D(64, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
     model.add(Activation('relu'))
@@ -144,7 +145,9 @@ def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1):
     model.add(Activation('relu'))
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2,2)))
-    model.add(Dropout(0.3))
+    
+    if dropout:
+        model.add(Dropout(0.3))
 
     model.add(Conv2D(128, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
     model.add(Activation('relu'))
@@ -153,14 +156,92 @@ def getKerasCifarMotionModel2(input_shape, n_classes, printmod=1):
     model.add(Activation('relu'))
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2,2)))
-    model.add(Dropout(0.4))
+    
+    if dropout:
+        model.add(Dropout(0.4))
 
     model.add(Flatten())
     model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dropout(0.5))
+    
+    if dropout:
+        model.add(Dropout(0.5))
+    
     model.add(Dense(n_classes, activation='softmax'))
                          
+    if (printmod==1 ):
+        model.summary()
+    return model
+
+
+def getSimonyanOxfordModel(input_shape, n_classes, printmod=1, dropout=1):
+    model = Sequential()
+    weight_decay = 1e-4
+    model.add(Conv2D(96, (7,7), strides=2, padding='same', kernel_regularizer=regularizers.l2(weight_decay), input_shape=input_shape))
+    model.add(Activation('relu'))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    
+    model.add(Conv2D(256, (5,5), strides=2, padding='same'))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
+
+    model.add(Conv2D(512, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    
+    model.add(Conv2D(512, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    
+    model.add(Conv2D(512, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    
+    model.add(Conv2D(64, (3,3), padding='same', kernel_regularizer=regularizers.l2(weight_decay)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    
+    
+    model.add(Flatten())
+    model.add(Dense(4096))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.9))
+    
+    model.add(Dense(2048))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.9))      
+    
+    model.add(Dense(n_classes, activation='softmax'))
+                         
+    if (printmod==1 ):
+        model.summary()
+    
+    return model
+
+def getVggMotionModel2(input_shape, printmod=1):
+    
+
+    base_model = VGG16(include_top=False, weights='imagenet', input_shape=input_shape)
+    x = base_model.get_layer('block5_pool').output   # collect outputs from hidden layer, Block 5
+    # stitch layers to the VGG16 layers
+    
+    x = Flatten()(x)
+    
+    x = Dense(512, activation='relu',name='fc-1')(x)
+    x = Dropout(0.9)(x)
+    x = Dense(256, activation='relu',name='fc-2')(x)
+    x = Dropout(0.9)(x)
+
+    predictions = Dense(101, activation='softmax')(x)
+    
+    model = Model(inputs=base_model.input, outputs=predictions)
+    
+    # freeze original VGG16 layers
+    for i, layer in enumerate(model.layers):
+        if 'block1' in layer.name or 'block2' in layer.name or 'block3' in layer.name or \
+        'block4' in layer.name or 'block5' in layer.name:
+            layer.trainable = False
+        else:
+            layer.trainable = True
+            
     if (printmod==1 ):
         model.summary()
     return model
