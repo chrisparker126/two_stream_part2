@@ -21,7 +21,8 @@ default_training_options = { 'rescale' : 1./255, \
 class DataGenerator(keras.utils.Sequence):
     'Generate UCF 101 data for keras'
     def __init__(self, list_IDs, labels, data_dir, batch_size=64, dim=(224,224), n_frames=3, n_frequency=5, n_classes=101, shuffle=True, \
-                validation=False, return_files=False, enable_augmentation=False, training_opts=default_training_options, \
+                validation=False, return_files=False, enable_augmentation=False, feature_wise_standardization=False, \
+                 training_opts=default_training_options, \
                  validation_opts=default_validation_options):        
         'Initialisation'
         self.data_dir = data_dir
@@ -35,6 +36,9 @@ class DataGenerator(keras.utils.Sequence):
         self.n_classes = n_classes
         self.return_files = return_files
         self.enable_augmentation = enable_augmentation
+        self.feature_wise_standardization = feature_wise_standardization
+        self.mean = None
+        self.std = None
         self.on_epoch_end()
 
         
@@ -47,6 +51,21 @@ class DataGenerator(keras.utils.Sequence):
         'Denotes the number of batches per epoch'
         return int(np.floor(len(self.list_IDs) / self.batch_size))
     
+    def fit(self):
+        X = np.empty((self.batch_size*32, *self.dim,self.n_frames*2), dtype=np.float64)        
+        
+        for i in range(0, 32):
+            _X, _y = self.__getitem2__(i, False)
+            X[i*self.batch_size:(i+1)*self.batch_size,] = _X
+        
+        self.mean = np.mean(X, axis=(0, 1, 2))
+        broadcast_shape = [1, 1, 2]
+        self.mean = np.reshape(self.mean, broadcast_shape)
+        
+        self.std = np.std(X, axis=(0, 1, 2))
+        broadcast_shape = [1, 1, 2]
+        self.std = np.reshape(self.std, broadcast_shape)
+        
     def __getitem__(self, index):
         'Generate one batch of data'
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
@@ -62,13 +81,27 @@ class DataGenerator(keras.utils.Sequence):
         else:
             return X, y
     
+    def __getitem2__(self, index, standardization_enabled):
+        'Generate one batch of data'
+        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+        
+        # find list of ids
+        list_IDs_temp = [self.list_IDs[k] for k in indexes]
+        
+        # Generate data 
+        X, y, dirs = self.__data_generation(list_IDs_temp, standardization_enabled)
+        
+        if self.return_files:
+            return X, y, dirs
+        else:
+            return X, y
     def on_epoch_end(self):
         'Update indexes after each epoch'
         self.indexes = np.arange(len(self.list_IDs))
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
     
-    def __data_generation(self, list_IDs_temp):
+    def __data_generation(self, list_IDs_temp, standardization_enabled=True):
         'Generates data containing batch_size samples' 
         X = np.empty((self.batch_size, *self.dim,self.n_frames*2), dtype=np.float32)
         y = np.empty((self.batch_size), dtype=int)
@@ -81,7 +114,12 @@ class DataGenerator(keras.utils.Sequence):
             y[i] = self.labels[ID]-1
             dirs.append(data[1])
         
-        X = self.data_gen.standardize(X.astype(float))
+        if standardization_enabled:
+            X = self.data_gen.standardize(X.astype(float))
+            if self.feature_wise_standardization:
+                if (self.mean is not None) and (self.std is not None):
+                    X -= self.mean
+                    X /= (self.std + np.finfo(float).eps)
         
         if self.enable_augmentation and self.n_frames*2 == 2:
             for i in range(0, X.shape[0]):

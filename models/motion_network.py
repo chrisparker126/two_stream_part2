@@ -179,7 +179,7 @@ def getSimonyanOxfordModel(input_shape, n_classes, printmod=1, dropout=1):
     weight_decay = 1e-4
     model.add(Conv2D(96, (7,7), strides=2, padding='same', kernel_regularizer=regularizers.l2(weight_decay), input_shape=input_shape))
     model.add(Activation('relu'))
-    model.add(BatchNormalization())
+    #model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2,2)))
     
     model.add(Conv2D(256, (5,5), strides=2, padding='same'))
